@@ -1,0 +1,122 @@
+****************************;
+** Assignment 1 Sample code;
+****************************;
+libname orion '/home/ssvasan77/ecourse';
+data ames; set orion.ames_housing;
+proc contents; run;
+
+data temp; set ames;
+TotalFlrSF = FirstFlrSF + SecondFlrSF; 
+houseage = YrSold - YearBuilt;
+
+data temp; set temp; drop FirstFlrSF SecondFlrSF;
+
+data temp; set temp; keep TotalFlrSF GrLivArea houseage Zoning LotShape OverallQual
+HouseStyle Alley FullBath LotArea SalePrice BldgType BsmtFinSF1
+ Condition1 Condition2 BldgType Electrical Functional Heating Utilities RoofStyle RoofMat;
+ 
+data temp1; set temp; if _n_ < 10;
+proc print; run;
+
+proc print data=temp(obs=5);
+
+** Task 1 - you do not need SAS - You need to write the Introduction;
+
+** Task 2 - Sort the saleprice;
+
+ data temp1; set temp;
+ proc sort data=temp1; by descending SalePrice;
+   proc print data=temp1 (obs=10);
+   
+ data temp1; set temp;
+ proc sort data=temp1; by SalePrice;
+   proc print data=temp1 (obs=10);
+   
+** Conclusions from Task 2;   
+  
+** Task 3 - correlations;
+
+ods graphics on;
+
+proc corr data=temp plot=matrix(histogram nvar=all) plots(maxpoints=NONE); 
+run;
+
+** Conclusions from task 3;
+
+** Task 4 - scatter plots;
+
+PROC SGSCATTER data=temp;
+MATRIX TotalFlrSF GrLivArea houseage OverallQual
+FullBath LotArea SalePrice BsmtFinSF1/ DIAGONAL= (HISTOGRAM);
+
+ods graphics on;
+
+proc sgplot; scatter x= TotalFlrSF y=SalePrice; run;
+proc sgplot; scatter x= houseage y=SalePrice; run;
+proc sgplot; scatter x= OverallQual y=SalePrice; run;
+
+** Conclusions from Task 4;
+
+** Task 5 - LOESS; 
+
+proc sgscatter data=temp;
+compare Y=SalePrice X=TotalFlrSF / loess reg;
+run;
+proc sgscatter data=temp;
+compare Y=SalePrice X=houseage / loess reg;
+run;
+proc sgscatter data=temp;
+compare Y=SalePrice X=OverallQual / loess reg;
+run;
+
+** Conclusions from Task 5;
+
+** Task 6 - analysis of categorical variables;
+
+proc freq; tables Alley LotShape FullBath Zoning; run;
+
+proc sgplot; vbar Alley; run;
+proc sgplot; vbar LotShape; run;
+proc sgplot; vbar FullBath; run;
+proc sgplot; vbar Zoning; run;
+
+proc gchart; vbar BldgType Electrical Functional Heating Utilities
+ HouseStyle; run;
+ 
+** Conclusions from Task 6;
+
+** Task 7 - relating categorical variables with the response;
+proc sort data = temp; by Lotshape;
+proc means; var SalePrice; by Lotshape; run;
+proc sort data = temp; by HouseStyle;
+proc means; var SalePrice; by HouseStyle; run;
+
+** Conclusions from Task 7;
+
+** Task 8 - EDA;
+
+proc means; var SalePrice LotArea TotalFlrSF; run;
+proc sort data = temp; by Lotshape;
+proc boxplot data = temp;
+  plot SalePrice*LotShape;
+run;
+proc sort data = temp; by Zoning;
+proc boxplot data = temp;
+  plot SalePrice*Zoning;
+run;
+ 
+   proc univariate data=temp;
+      var SalePrice LotArea TotalFlrSF houseage BsmtFinSF1;
+      histogram;
+   run;
+** subsetting the data;   
+data temp2; set temp; if SalePrice < 500000;
+data temp3; set temp; if SalePrice > 500000 then delete;
+run;
+
+
+** Task 9 - do not need SAS - You need to write overall conclusions;
+** You can save the output into a RTF file so that you can easily
+copy/paste in your reports;
+
+
