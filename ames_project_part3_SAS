@@ -1,0 +1,177 @@
+libname orion '/home/ssvasan77/ecourse';
+data ames; set orion.ames_housing;
+ods graphics on;
+data temp; set ames;
+TotalFlrSF = FirstFlrSF + SecondFlrSF; 
+houseage = YrSold - YearBuilt;
+sqft_age=HouseAge*TotalFlrSF;
+
+data temp; set temp; drop FirstFlrSF SecondFlrSF;
+data temp; set temp; keep TotalFlrSF GrLivArea houseage Zoning LotShape OverallQual
+HouseStyle Alley FullBath LotArea SalePrice BldgType BsmtFinSF1 sqft_age;
+
+
+/*
+snippet of code to remove outliers - just for reference;
+merge a file mutiple records with a file with one record;
+proc means data = temp mean std;
+var SalePrice;
+output out = test1 mean=m1 std=s1;
+run;
+
+data test2;
+merge temp test1;
+retain mean1 std1;
+if _n_ = 1 then do;
+mean1 = m1; 
+std1 = s1; 
+end;
+drop _freq_ _type_ m1 s1;
+run;
+
+proc print data = test2(obs=5);
+run;
+data test2; set test2;
+uplimit = mean1 + 2*std1;
+if Saleprice > uplimit then delete; run;
+proc print data = test2(obs=5);
+*/
+
+** Task 1 - creating transformed variables;
+
+data temp; set temp;
+LogSalePrice = log(SalePrice);
+SqrtSalePrice = sqrt(SalePrice);
+LogTotalFlrSF = log(TotalFlrSF);
+
+
+** Task 2 - 4 SLR models;
+
+proc reg data=temp;
+model SalePrice = TotalFlrSF/ vif ;
+title 'SLR - saleprice vs TotalFlrSF';
+output out=fitted_model1 pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+proc reg data=temp;
+model LogSalePrice = TotalFlrSF/ vif ;
+title 'SLR - Logsaleprice vs TotalFlrSF';
+output out=fitted_model1 pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+proc reg data=temp;
+model SalePrice = LogTotalFlrSF/ vif ;
+title 'SLR - saleprice vs LogTotalFlrSF';
+output out=fitted_model1 pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+proc reg data=temp;
+model LogSalePrice = LogTotalFlrSF/ vif ;
+title 'SLR - Logsaleprice vs LogTotalFlrSF';
+output out=fitted_model1 pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+** Task 3 - Correlation;
+PROC CORR DATA=temp PLOT=(matrix) plots(maxpoints=NONE);
+VAR SalePrice LogSalePrice SqrtSalePrice;
+WITH LotArea TotalFlrSF BsmtFinSF1 OverallQual;
+title 'Correlation';
+run;
+
+proc sgscatter data=temp;
+compare Y=SalePrice X=TotalFlrSF / loess reg;
+run;
+proc sgscatter data=temp;
+compare Y=SalePrice X=LogTotalFlrSF / loess reg;
+run;
+proc sgscatter data=temp;
+compare Y=LogSalePrice X=TotalFlrSF / loess reg;
+run;
+proc sgscatter data=temp;
+compare Y=SqrtSalePrice X=TotalFlrSF / loess reg;
+run;
+
+** task 4 Regression with Sqrt transformation;
+proc reg data=temp;
+model SqrtSalePrice = TotalFlrSF/ vif ;
+title 'SLR - Sqrtsaleprice vs TotalFlrSF';
+output out=fitted_model1 pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+** Task 5 Outliers;
+data temp; set temp;
+format outlier_def $30.;
+if (LotArea > 20000) then do;
+outlier_def = "1 Definition LotArea";
+outlier_code = 1; end;
+data temp; set temp;
+if (outlier_code > 0) then delete;
+
+ /*data temp1; set temp; if LotArea < 20000;*/
+
+** Task 6 Refit models from Assign #2 parts 2,5,6;
+
+Proc Reg data=temp outest=rsq_var;
+	Title 'Model 2 - SLR with best R-Squared';
+	model LogSalePrice = TotalFlrSF GrLivArea houseage OverallQual
+        FullBath LotArea BsmtFinSF1/ selection = rsquare AIC VIF BIC MSE best=1 B stop = 1;
+		 output out=model_R2 pred=yhat residual = resid ucl=ucl lcl=lcl cookd=cook
+		 covratio=cov dffits=dfits press=prss;
+run;
+
+proc reg data=temp;
+model LogSalePrice = houseage OverallQual/ vif;
+title 'Model 5 - MLR with Houseage and overallqual';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+proc reg data=temp;
+model LogSalePrice = houseage OverallQual LotArea/ vif;
+title 'Model 6 - MLR with Houseage and overallqual and LotArea';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+
+** task 7 Model based outliers;
+
+proc reg data=temp outest=outputmod1;
+model LogSalePrice = HouseAge TotalFlrSF OverallQual/ vif ;
+title 'Three variable Regression Model with log transformation';
+output out=fitted_model pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+** DFFITS threshold is 2*Sqrt(p/n) = 2*Sqrt(4/2840) = 0.075;
+
+data out2; set fitted_model; if abs(dfits) > 0.075 then delete;**removes outliers;
+ 
+proc reg data=out2 outest=outputmod2;
+model LogSalePrice = HouseAge TotalFlrSF OverallQual/ vif ;
+title 'Three variable Regression - Model based Outliers Removed';
+output out=fitted_model pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+ods graphics off;
+
+******;
+
+proc reg data=temp outest=outputmod3;
+model LogSalePrice = HouseAge TotalFlrSF OverallQual/influence;
+title 'Three variable Regression- only outliers removed- Influence option - long output!';
+output out=fitted_model pred=yhat residual=residual ucl=ucl lcl=lcl
+cookd=cook covratio=cov dffits=dfits press=prss h=hat;
+run;
+
+** Task 8 - overall conclusions;
+
+
+
+
+
