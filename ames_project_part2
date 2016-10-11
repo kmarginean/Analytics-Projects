@@ -1,0 +1,81 @@
+libname orion '/home/ssvasan77/ecourse';
+data ames; set orion.ames_housing;
+ * proc contents; * run;
+
+ods graphics on;
+
+data temp; set ames;
+TotalFlrSF = FirstFlrSF + SecondFlrSF; 
+houseage = YrSold - YearBuilt;
+If LotShape = 'Reg' then LotShapeCategory = 1; else LotShapeCategory = 0;
+
+data temp; set temp; drop FirstFlrSF SecondFlrSF;
+
+data temp; set temp; keep TotalFlrSF GrLivArea houseage Zoning LotShape OverallQual
+HouseStyle Alley FullBath LotArea SalePrice BldgType BsmtFinSF1 LotShapeCategory;
+
+** Task 1 Simple Linear Regression with approximate r=0.5;
+proc reg data=temp;
+model SalePrice = houseage/ vif;
+title 'Model 1 - SLR with Houseage';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+/*
+proc gplot data=fitted_model;
+plot SalePrice*houseage yhat*houseage / overlay;
+title 'Output from Gplot for Model 1 -  with houseage';
+run;
+*/
+
+** task 2 'best' SLR;
+Proc Reg data=temp outest=rsq_var;
+	Title 'Model 2 - SLR with best R-Squared';
+	model SalePrice = TotalFlrSF GrLivArea houseage OverallQual
+        FullBath LotArea BsmtFinSF1/ selection = rsquare AIC VIF BIC MSE best=1 B stop = 1;
+		 output out=model_R2 pred=yhat residual = resid ucl=ucl lcl=lcl cookd=cook
+		 covratio=cov dffits=dfits press=prss;
+run;
+
+** Task 3 Simple Linear Regression with Categorical variable LotShape;
+proc reg data=temp;
+model SalePrice = LotShape/ vif;
+title 'Model 3 - SLR with Lot Shape';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+proc reg data=temp;
+model SalePrice = LotShapeCategory/ vif;
+title 'Model 3 Modified - SLR with Lot Shape category';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+** task 4 - just write the conclusion from previous tasks;
+ 
+** task 5 MLR with house age & Overall Quality;
+proc reg data=temp;
+model SalePrice = houseage OverallQual/ vif;
+title 'Model 5 - MLR with Houseage and overallqual';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+** task 6 MLR with house age & Overall Quality along with LotArea;
+proc reg data=temp;
+model SalePrice = houseage OverallQual LotArea/ vif;
+title 'Model 6 - MLR with Houseage and overallqual and LotArea';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+** task modified: MLR with house age & Overall Quality along with TotalFloorsqft;
+proc reg data=temp;
+model SalePrice = houseage OverallQual TotalFlrSF/ vif;
+title 'Model 6 Modified - MLR with Houseage and overallqual and TotalFlrSF';
+output out=fitted_model pred=yhat residual=resid 
+ucl=ucl lcl=lcl cookd=cook covratio=cov dffits=dfits press=prss;
+run;
+
+** task 7 - overall conclusions;
+
